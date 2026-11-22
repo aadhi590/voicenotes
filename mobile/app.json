@@ -26,6 +26,12 @@
     "plugins": [
       "expo-status-bar"
     ],
-    "backgroundColor": "#0E1116"
+    "backgroundColor": "#0E1116",
+    "extra": {
+      "eas": {
+        "projectId": "7d08afb0-c7aa-4eee-a705-fe1717547bd2"
+      }
+    },
+    "owner": "aadhix58"
   }
 }

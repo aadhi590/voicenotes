@@ -6,7 +6,8 @@ import asyncio
 import json
 import logging
 import time
-from contextlib import suppress
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from pathlib import PurePosixPath
 from typing import Any
 
@@ -21,6 +22,7 @@ import llm  # noqa: E402  (env must be loaded first)
 import rag  # noqa: E402
 from config import (  # noqa: E402
     AUDIO_EXTENSIONS,
+    LLM_MODEL,
     MAX_AUDIO_MB,
     MAX_QUESTION_CHARS,
     MAX_UPLOAD_MB,
@@ -30,6 +32,7 @@ from config import (  # noqa: E402
     NOT_FOUND_MESSAGE,
     RATE_LIMIT_MESSAGE,
     SNIPPET_CHARS,
+    STT_MODEL,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -38,8 +41,15 @@ log = logging.getLogger("voicenotes")
 MB = 1024 * 1024
 WS_MISSING_DEVICE_CODE = 4400
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    # One startup line for deploy logs. Never log the key itself.
+    log.info("startup llm=%s stt=%s groq_key_set=%s", LLM_MODEL, STT_MODEL, llm.groq_configured())
+    yield
+
+
 # Our API owns /docs, so move FastAPI's Swagger UI out of the way.
-app = FastAPI(title="VoiceNotes", docs_url="/swagger", redoc_url=None)
+app = FastAPI(title="VoiceNotes", docs_url="/swagger", redoc_url=None, lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 

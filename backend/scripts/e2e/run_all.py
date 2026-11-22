@@ -2,6 +2,7 @@
 
 Usage (from app1/backend):
     python scripts/e2e/run_all.py [--base http://localhost:8000] [--server-log path/to/uvicorn.log] [--only 1,3]
+    python scripts/e2e/run_all.py --base https://<domain> --quick   # < 1 min smoke test (~2 LLM calls)
 
 Needs the server to have a real GROQ_API_KEY. Exit code 0 only if every check passes.
 """
@@ -19,6 +20,7 @@ import httpx
 import checks_bargein
 import checks_generation
 import checks_ingest
+import checks_quick
 import checks_retrieval
 import checks_voice
 from common import RATE_LIMIT_HITS, Ctx, Report, build_local_chunks
@@ -32,14 +34,15 @@ SECTIONS = [
     ("5", "Voice loop", checks_voice.run_voice),
     ("6", "Latency", checks_voice.run_latency),
 ]
+QUICK_SECTIONS = [("Q", "Quick smoke test", checks_quick.run)]
 
 
-def print_summary(report: Report) -> bool:
+def print_summary(report: Report, sections: list) -> bool:
     print("\n" + "=" * 100)
     print(f"{'section':<28}{'passed/total':>13}   issues")
     print("-" * 100)
     all_ok = True
-    for num, title, _ in SECTIONS:
+    for num, title, _ in sections:
         name = f"{num} {title}"
         rows = [row for row in report.results if row[0] == name]
         if not rows:
@@ -61,6 +64,7 @@ async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="http://localhost:8000")
     parser.add_argument("--server-log", type=Path, default=None, help="uvicorn log file (enables traceback check)")
+    parser.add_argument("--quick", action="store_true", help="smoke test only: health, upload, 2 asks, cancel, STT")
     parser.add_argument("--only", default="", help="comma-separated section numbers, e.g. 1,3")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
@@ -81,8 +85,9 @@ async def main() -> int:
         if not health.get("groq_configured"):
             print("WARNING: server has no GROQ_API_KEY; generation checks will fail")
         ctx = Ctx(base=base, client=client, report=report, server_log=args.server_log, local_chunks=build_local_chunks())
-        for num, title, fn in SECTIONS:
-            if only and num not in only:
+        sections = QUICK_SECTIONS if args.quick else SECTIONS
+        for num, title, fn in sections:
+            if only and not args.quick and num not in only:
                 continue
             report.section = f"{num} {title}"
             print(f"\n== {report.section} ==", flush=True)
@@ -96,7 +101,7 @@ async def main() -> int:
                 traceback.print_exc()
             if len(RATE_LIMIT_HITS) > hits_before:
                 report.note(f"{len(RATE_LIMIT_HITS) - hits_before} Groq rate-limit backoffs (TPM quota)")
-    return 0 if print_summary(report) else 1
+    return 0 if print_summary(report, sections) else 1
 
 
 if __name__ == "__main__":

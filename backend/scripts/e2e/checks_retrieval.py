@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from common import FIXTURES, DOC_FILES, Ctx, rag
+from config import TOP_K
 from questions import QUESTIONS, Question
 
 EVAL_DEVICE = "local-retrieval-eval"
 TOP1_TARGET = 8
-TOP5_TARGET = 11
+TOPK_TARGET = 11
 
 
 def load_fixtures(device: str = EVAL_DEVICE) -> None:
@@ -42,6 +43,6 @@ def run(ctx: Ctx) -> None:
         score_s = f"{score:.2f}" if score is not None else "-"
         r.info(f"{i:>2} {rank_s:>4} {score_s:>6}  {'yes' if q.paraphrase else '':4}  {q.text} -> {chunk_id}")
     top1 = sum(1 for _, rank, _, _ in rows if rank == 1)
-    top5 = sum(1 for _, rank, _, _ in rows if rank)
+    topk = sum(1 for _, rank, _, _ in rows if rank)
     r.check(f"correct chunk ranked #1 for >= {TOP1_TARGET}/12", top1 >= TOP1_TARGET, f"{top1}/12")
-    r.check(f"correct chunk in top 5 for >= {TOP5_TARGET}/12", top5 >= TOP5_TARGET, f"{top5}/12")
+    r.check(f"correct chunk in top {TOP_K} for >= {TOPK_TARGET}/12", topk >= TOPK_TARGET, f"{topk}/12")

@@ -171,6 +171,27 @@ def test_validation_and_llm_errors_keep_socket(client, monkeypatch):
         assert ws.receive_json() == {"type": "pong"}
 
 
+def test_rate_limit_sends_clear_error_and_socket_survives(client, monkeypatch):
+    import groq
+    import httpx
+
+    from config import RATE_LIMIT_MESSAGE
+
+    async def limited(question, sources):
+        response = httpx.Response(429, request=httpx.Request("POST", "https://api.groq.com/x"))
+        raise groq.RateLimitError("rate limited", response=response, body=None)
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(llm, "stream_answer", limited)
+    upload_notes(client)
+    with client.websocket_connect(f"/ask?device_id={DEVICE}") as ws:
+        ask(ws, "q1")
+        events = collect_until(ws, "q1")
+        assert events[-1] == {"type": "error", "id": "q1", "message": RATE_LIMIT_MESSAGE}
+        ws.send_json({"type": "ping"})
+        assert ws.receive_json() == {"type": "pong"}
+
+
 def test_missing_key_sends_error(client, monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY")
     upload_notes(client)

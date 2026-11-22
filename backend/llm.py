@@ -12,12 +12,19 @@ from rag import Chunk
 
 SYSTEM_PROMPT = (
     "You are a voice study assistant. Answer ONLY using the numbered context from the user's notes. "
-    "Cite sources inline like [1] or [2] right after the fact they support. "
-    "Your answer will be read aloud: 2 to 5 short sentences, plain spoken English, "
+    "Cite sources inline like [1] or [2] right after the fact they support, in every sentence. "
+    "Your answer will be read aloud: always 2 to 5 short sentences (even for a single fact, add one "
+    "supporting detail from the context), plain spoken English, "
     "no markdown, no bullet points, no headings, no code blocks. "
-    "If the context does not contain the answer, say exactly: "
+    "If the question covers several topics, answer each part the context supports and cite each source; "
+    "do not refuse just because the notes never compare them directly. "
+    "If the context contains nothing relevant to the question, say exactly: "
     "'I couldn't find that in your notes.' Do not use outside knowledge."
 )
+
+# Fail fast on rate limits: a voice user should hear "try again" now, not silence for 30-60 s
+# while the SDK backs off. The client can retry.
+GROQ_MAX_RETRIES = 0
 
 _client: AsyncGroq | None = None
 
@@ -30,7 +37,7 @@ def get_client() -> AsyncGroq:
     """Create one AsyncGroq client lazily and reuse it."""
     global _client
     if _client is None:
-        _client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
+        _client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"), max_retries=GROQ_MAX_RETRIES)
     return _client
 
 

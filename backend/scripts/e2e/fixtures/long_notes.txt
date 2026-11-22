@@ -1,0 +1,175 @@
+Computer Networks Study Guide. The OSI model has seven layers: physical, data link, network, transport, session, presentation and application. A handy mnemonic is Please Do Not Throw Sausage Pizza Away. The TCP/IP model squeezes these into four layers: link, internet, transport and application.
+
+Bench journal entry 1: the study group met in room 101, reviewed 4 practice problems from chapter 2, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 2: the study group met in room 102, reviewed 5 practice problems from chapter 3, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 3: the study group met in room 103, reviewed 6 practice problems from chapter 4, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 4: the study group met in room 104, reviewed 7 practice problems from chapter 5, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 5: the study group met in room 105, reviewed 3 practice problems from chapter 6, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 6: the study group met in room 106, reviewed 4 practice problems from chapter 7, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 7: the study group met in room 107, reviewed 5 practice problems from chapter 8, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 8: the study group met in room 108, reviewed 6 practice problems from chapter 9, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 9: the study group met in room 100, reviewed 7 practice problems from chapter 10, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+TCP is connection-oriented and reliable. A TCP connection starts with the three-way handshake: the client sends SYN, the server answers with SYN-ACK, and the client replies with ACK. TCP uses sequence numbers, acknowledgements and retransmission timers, plus a sliding window for flow control.
+
+Bench journal entry 10: the study group met in room 101, reviewed 3 practice problems from chapter 11, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 11: the study group met in room 102, reviewed 4 practice problems from chapter 12, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 12: the study group met in room 103, reviewed 5 practice problems from chapter 1, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 13: the study group met in room 104, reviewed 6 practice problems from chapter 2, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 14: the study group met in room 105, reviewed 7 practice problems from chapter 3, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 15: the study group met in room 106, reviewed 3 practice problems from chapter 4, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 16: the study group met in room 107, reviewed 4 practice problems from chapter 5, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 17: the study group met in room 108, reviewed 5 practice problems from chapter 6, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 18: the study group met in room 100, reviewed 6 practice problems from chapter 7, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+UDP is connectionless and has no handshake, no retransmission and no ordering. It has a tiny 8 byte header, which makes it a good fit for DNS queries, voice calls, live video and online games.
+
+Bench journal entry 19: the study group met in room 101, reviewed 7 practice problems from chapter 8, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 20: the study group met in room 102, reviewed 3 practice problems from chapter 9, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 21: the study group met in room 103, reviewed 4 practice problems from chapter 10, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 22: the study group met in room 104, reviewed 5 practice problems from chapter 11, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 23: the study group met in room 105, reviewed 6 practice problems from chapter 12, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 24: the study group met in room 106, reviewed 7 practice problems from chapter 1, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 25: the study group met in room 107, reviewed 3 practice problems from chapter 2, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 26: the study group met in room 108, reviewed 4 practice problems from chapter 3, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 27: the study group met in room 100, reviewed 5 practice problems from chapter 4, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+DNS translates host names into IP addresses and normally listens on port 53. Our campus DNS resolver is at 10.20.0.53. Common record types are A for IPv4, AAAA for IPv6, MX for mail servers and CNAME for aliases.
+
+Bench journal entry 28: the study group met in room 101, reviewed 6 practice problems from chapter 5, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 29: the study group met in room 102, reviewed 7 practice problems from chapter 6, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 30: the study group met in room 103, reviewed 3 practice problems from chapter 7, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 31: the study group met in room 104, reviewed 4 practice problems from chapter 8, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 32: the study group met in room 105, reviewed 5 practice problems from chapter 9, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 33: the study group met in room 106, reviewed 6 practice problems from chapter 10, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 34: the study group met in room 107, reviewed 7 practice problems from chapter 11, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 35: the study group met in room 108, reviewed 3 practice problems from chapter 12, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 36: the study group met in room 100, reviewed 4 practice problems from chapter 1, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Ethernet frames on our lab network have an MTU of 1500 bytes, so larger IP packets must be fragmented or the sender must use path MTU discovery to find the largest size that fits.
+
+Bench journal entry 37: the study group met in room 101, reviewed 5 practice problems from chapter 2, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 38: the study group met in room 102, reviewed 6 practice problems from chapter 3, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 39: the study group met in room 103, reviewed 7 practice problems from chapter 4, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 40: the study group met in room 104, reviewed 3 practice problems from chapter 5, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 41: the study group met in room 105, reviewed 4 practice problems from chapter 6, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 42: the study group met in room 106, reviewed 5 practice problems from chapter 7, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 43: the study group met in room 107, reviewed 6 practice problems from chapter 8, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 44: the study group met in room 108, reviewed 7 practice problems from chapter 9, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 45: the study group met in room 100, reviewed 3 practice problems from chapter 10, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Subnetting splits an address block into smaller networks. A /24 subnet has 256 addresses and 254 usable hosts, because the network address and the broadcast address are reserved.
+
+Bench journal entry 46: the study group met in room 101, reviewed 4 practice problems from chapter 11, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 47: the study group met in room 102, reviewed 5 practice problems from chapter 12, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 48: the study group met in room 103, reviewed 6 practice problems from chapter 1, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 49: the study group met in room 104, reviewed 7 practice problems from chapter 2, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 50: the study group met in room 105, reviewed 3 practice problems from chapter 3, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 51: the study group met in room 106, reviewed 4 practice problems from chapter 4, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 52: the study group met in room 107, reviewed 5 practice problems from chapter 5, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 53: the study group met in room 108, reviewed 6 practice problems from chapter 6, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 54: the study group met in room 100, reviewed 7 practice problems from chapter 7, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+HTTP runs on top of TCP on port 80, while HTTPS wraps HTTP in TLS on port 443. HTTP/2 multiplexes many requests over one connection, and HTTP/3 runs over QUIC, which is built on UDP.
+
+Bench journal entry 55: the study group met in room 101, reviewed 3 practice problems from chapter 8, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 56: the study group met in room 102, reviewed 4 practice problems from chapter 9, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 57: the study group met in room 103, reviewed 5 practice problems from chapter 10, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 58: the study group met in room 104, reviewed 6 practice problems from chapter 11, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 59: the study group met in room 105, reviewed 7 practice problems from chapter 12, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 60: the study group met in room 106, reviewed 3 practice problems from chapter 1, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 61: the study group met in room 107, reviewed 4 practice problems from chapter 2, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 62: the study group met in room 108, reviewed 5 practice problems from chapter 3, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 63: the study group met in room 100, reviewed 6 practice problems from chapter 4, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Every IP packet carries a time to live field. Linux sets the initial TTL to 64, and each router decrements it by one; when it reaches zero the packet is dropped and an ICMP time exceeded message is sent back.
+
+Bench journal entry 64: the study group met in room 101, reviewed 7 practice problems from chapter 5, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 65: the study group met in room 102, reviewed 3 practice problems from chapter 6, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 66: the study group met in room 103, reviewed 4 practice problems from chapter 7, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 67: the study group met in room 104, reviewed 5 practice problems from chapter 8, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 68: the study group met in room 105, reviewed 6 practice problems from chapter 9, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 69: the study group met in room 106, reviewed 7 practice problems from chapter 10, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 70: the study group met in room 107, reviewed 3 practice problems from chapter 11, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 71: the study group met in room 108, reviewed 4 practice problems from chapter 12, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 72: the study group met in room 100, reviewed 5 practice problems from chapter 1, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 73: the study group met in room 101, reviewed 6 practice problems from chapter 2, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 74: the study group met in room 102, reviewed 7 practice problems from chapter 3, and spent 24 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 75: the study group met in room 103, reviewed 3 practice problems from chapter 4, and spent 25 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 76: the study group met in room 104, reviewed 4 practice problems from chapter 5, and spent 26 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 77: the study group met in room 105, reviewed 5 practice problems from chapter 6, and spent 20 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 78: the study group met in room 106, reviewed 6 practice problems from chapter 7, and spent 21 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 79: the study group met in room 107, reviewed 7 practice problems from chapter 8, and spent 22 minutes summarising the readings on index cards before the tutor collected the worksheets.
+
+Bench journal entry 80: the study group met in room 108, reviewed 3 practice problems from chapter 9, and spent 23 minutes summarising the readings on index cards before the tutor collected the worksheets.

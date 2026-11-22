@@ -10,6 +10,7 @@ from contextlib import suppress
 from pathlib import PurePosixPath
 from typing import Any
 
+import groq
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +28,7 @@ from config import (  # noqa: E402
     MISSING_KEY_MESSAGE,
     NO_DOCS_MESSAGE,
     NOT_FOUND_MESSAGE,
+    RATE_LIMIT_MESSAGE,
     SNIPPET_CHARS,
 )
 
@@ -188,6 +190,9 @@ class AskSession:
             await self._run_answer(qid, question)
         except asyncio.CancelledError:
             raise
+        except groq.RateLimitError:
+            log.warning("ask rate-limited device=%s id=%s", self.device_id, qid)
+            await self.error(qid, RATE_LIMIT_MESSAGE)
         except Exception as exc:
             log.exception("ask failed device=%s id=%s", self.device_id, qid)
             await self.error(qid, f"Answer failed: {type(exc).__name__}")

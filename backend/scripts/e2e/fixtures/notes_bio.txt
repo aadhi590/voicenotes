@@ -1,0 +1,13 @@
+Photosynthesis Lab Notes (Biology 101)
+
+Photosynthesis turns light energy, water and carbon dioxide into glucose and oxygen inside chloroplasts. The light-dependent reactions run on the thylakoid membranes and produce ATP, NADPH and oxygen. The oxygen released by plants comes from splitting water, not from carbon dioxide.
+
+Pigments: chlorophyll a absorbs light most strongly at about 430 nm (blue) and 662 nm (red). Green light is mostly reflected, which is why leaves look green. Carotenoids are accessory pigments that absorb blue-green light and protect the leaf from excess light.
+
+The Calvin cycle runs in the stroma. To build one molecule of glucose the Calvin cycle uses 18 ATP and 12 NADPH. The enzyme RuBisCO fixes carbon dioxide and is probably the most abundant protein on Earth.
+
+Leaves exchange gases through tiny pores called stomata. Each stoma is surrounded by two guard cells, which swell to open the pore and shrink to close it, controlling water loss and carbon dioxide intake. Most stomata are on the underside of the leaf.
+
+Greenhouse experiment: we grew basil plants under different LED colours for two weeks. Plants under blue LED light released 23 percent more oxygen than plants under green LED light. Red light gave the second highest oxygen output.
+
+Limiting factors: light intensity, carbon dioxide concentration and temperature. In our experiment the rate stopped rising above 30 degrees Celsius.

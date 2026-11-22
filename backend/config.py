@@ -29,3 +29,4 @@ AUDIO_EXTENSIONS = {".m4a", ".mp4", ".aac", ".wav", ".webm", ".mp3", ".ogg"}
 NO_DOCS_MESSAGE = "You haven't uploaded any notes yet. Upload a PDF or text file first."
 NOT_FOUND_MESSAGE = "I couldn't find that in your notes."
 MISSING_KEY_MESSAGE = "Server is missing GROQ_API_KEY"
+RATE_LIMIT_MESSAGE = "The AI service is busy (rate limit reached). Please try again in a few seconds."

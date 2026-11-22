@@ -5,8 +5,10 @@ import { defineRailway, github, project, service } from "railway/iac";
 // Preview: `railway config plan`   Apply: `railway config apply`   (run from the repo root)
 export default defineRailway(() => {
   const api = service("api", {
-    // Deploy from GitHub on every push to main, but only after the backend-tests CI passes.
-    source: github("aadhi590/voicenotes", { branch: "main", rootDirectory: "/backend", checkSuites: true }),
+    // Deploy from GitHub on every push to main. "Wait for CI" (checkSuites) does not persist via the
+    // API on this project (verified 2026-11-22), so it is toggled in the dashboard instead:
+    // service api -> Settings -> Source -> Wait for CI.
+    source: github("aadhi590/voicenotes", { branch: "main", rootDirectory: "/backend" }),
     build: {
       buildEnvironment: "V3",
       builder: "RAILPACK",

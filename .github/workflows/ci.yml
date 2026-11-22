@@ -1,4 +1,4 @@
-name: backend-tests
+name: tests
 
 on:
   push:
@@ -21,3 +21,19 @@ jobs:
       - run: pip install -r requirements-dev.txt
       # Groq is fully mocked in tests: no secrets, no network calls to Groq.
       - run: python -m pytest -q
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx jest --ci

@@ -17,7 +17,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aadhi590.voicenotes"
+      "package": "com.aadhi590.voicenotes",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

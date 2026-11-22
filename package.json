@@ -1,0 +1,8 @@
+{
+  "name": "voicenotes-infra",
+  "private": true,
+  "description": "Railway IaC tooling only (see .railway/railway.ts). The app itself is Python in backend/.",
+  "devDependencies": {
+    "railway": "^3.17.0"
+  }
+}

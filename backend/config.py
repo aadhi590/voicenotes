@@ -13,6 +13,13 @@ SNIPPET_CHARS = 200
 MAX_UPLOAD_MB = 15
 MAX_AUDIO_MB = 20
 MAX_QUESTION_CHARS = 1000
+
+# Memory guards for the in-memory store (public URL, no auth). ~9 KB per chunk incl. index,
+# so the global budget caps the store at roughly 450 MB. Over budget, least-recently-used
+# devices are evicted.
+MAX_DOCS_PER_DEVICE = 20
+MAX_CHUNKS_PER_DEVICE = 1000  # ~420k words, ~800 pages
+MAX_TOTAL_CHUNKS = 50_000
 MIN_AUDIO_BYTES = 1024
 
 LLM_MAX_TOKENS = 250

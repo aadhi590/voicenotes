@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import sys
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
@@ -44,7 +45,10 @@ WS_MISSING_DEVICE_CODE = 4400
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # One startup line for deploy logs. Never log the key itself.
-    log.info("startup llm=%s stt=%s groq_key_set=%s", LLM_MODEL, STT_MODEL, llm.groq_configured())
+    log.info(
+        "startup llm=%s stt=%s groq_key_set=%s python=%s",
+        LLM_MODEL, STT_MODEL, llm.groq_configured(), sys.version.split()[0],
+    )
     yield
 
 
@@ -86,7 +90,9 @@ def _ingest(device_id: str, doc_name: str, data: bytes) -> tuple[int, int]:
     """CPU-bound: extract, chunk, index. Runs in a worker thread."""
     pages = rag.extract_pages(doc_name, data)
     chunks = rag.chunk_pages(doc_name, pages)
-    rag.add_document(device_id, doc_name, chunks)
+    evicted = rag.add_document(device_id, doc_name, chunks)
+    if evicted:
+        log.warning("memory budget: evicted %d idle device(s); store=%s", len(evicted), rag.store_stats())
     return len(pages), len(chunks)
 
 
@@ -99,7 +105,7 @@ async def upload_doc(file: UploadFile = File(...), device_id: str = Depends(requ
     data = await read_limited(file, MAX_UPLOAD_MB)
     try:
         pages, chunks = await asyncio.to_thread(_ingest, device_id, doc_name, data)
-    except rag.ExtractionError as exc:
+    except rag.RagError as exc:
         raise HTTPException(exc.status_code, exc.message) from exc
     log.info("upload device=%s doc=%s pages=%d chunks=%d ms=%d", device_id, doc_name, pages, chunks, ms_since(start))
     return {"doc_name": doc_name, "pages": pages, "chunks": chunks}
@@ -116,7 +122,7 @@ async def list_docs(device_id: str = Depends(require_device)) -> dict[str, Any]:
 
 @app.delete("/docs")
 async def clear_docs(device_id: str = Depends(require_device)) -> dict[str, bool]:
-    rag.clear_device(device_id)
+    await asyncio.to_thread(rag.clear_device, device_id)
     return {"cleared": True}
 
 

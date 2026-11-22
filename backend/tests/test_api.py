@@ -123,3 +123,11 @@ def test_stt_missing_key_and_groq_error(client, monkeypatch):
 def test_stt_rejects_bad_extension(client):
     r = client.post("/stt", files={"file": ("q.txt", b"\0" * 4096, "text/plain")})
     assert r.status_code == 400
+
+
+def test_doc_limit_returns_409(client, monkeypatch):
+    monkeypatch.setattr(rag, "MAX_DOCS_PER_DEVICE", 1)
+    assert upload(client).status_code == 200
+    r = upload(client, name="second.txt")
+    assert r.status_code == 409
+    assert "Document limit reached" in r.json()["detail"]

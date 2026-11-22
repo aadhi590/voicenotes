@@ -82,3 +82,54 @@ def test_reupload_replaces_and_remove_document():
     assert rag.remove_document("d1", "bio.txt") is True
     assert rag.remove_document("d1", "bio.txt") is False
     assert "bio.txt" not in rag.list_docs("d1").docs
+
+
+# ---------- memory guards (public URL, no auth) ----------
+
+def _doc(name: str, n_chunks: int = 1) -> list:
+    return [rag.Chunk(f"{name}:1:{i}", name, 1, f"word{i} topic") for i in range(n_chunks)]
+
+
+def test_doc_limit_per_device(monkeypatch):
+    monkeypatch.setattr(rag, "MAX_DOCS_PER_DEVICE", 2)
+    rag.add_document("d", "a.txt", _doc("a.txt"))
+    rag.add_document("d", "b.txt", _doc("b.txt"))
+    rag.add_document("d", "a.txt", _doc("a.txt"))  # replacing an existing doc is allowed
+    with pytest.raises(rag.StoreLimitError) as exc:
+        rag.add_document("d", "c.txt", _doc("c.txt"))
+    assert exc.value.status_code == 409
+    assert set(rag.list_docs("d").docs) == {"a.txt", "b.txt"}
+
+
+def test_chunk_limit_per_device(monkeypatch):
+    monkeypatch.setattr(rag, "MAX_CHUNKS_PER_DEVICE", 5)
+    rag.add_document("d", "a.txt", _doc("a.txt", 4))
+    with pytest.raises(rag.StoreLimitError) as exc:
+        rag.add_document("d", "b.txt", _doc("b.txt", 2))
+    assert exc.value.status_code == 413
+    assert len(rag.list_docs("d").chunks) == 4  # store unchanged on rejection
+
+
+def test_global_budget_evicts_least_recently_used(monkeypatch):
+    monkeypatch.setattr(rag, "MAX_TOTAL_CHUNKS", 6)
+    rag._LAST_USED.clear()
+    for dev in ("old", "mid", "new"):
+        rag.add_document(dev, "n.txt", _doc("n.txt", 2))
+    rag.retrieve("old", "word0")  # touching "old" makes "mid" the least recently used
+    evicted = rag.add_document("newest", "n.txt", _doc("n.txt", 2))
+    assert evicted == ["mid"]
+    assert set(rag.STORE) == {"old", "new", "newest"}
+    assert rag.store_stats() == {"devices": 3, "chunks": 6}
+
+
+def test_concurrent_uploads_to_one_device_keep_every_doc():
+    import threading
+
+    threads = [threading.Thread(target=rag.add_document, args=("d", f"doc{i}.txt", _doc(f"doc{i}.txt", 3)))
+               for i in range(10)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    store = rag.list_docs("d")
+    assert len(store.docs) == 10 and len(store.chunks) == 30

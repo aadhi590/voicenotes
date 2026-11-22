@@ -100,29 +100,58 @@ function parseJson(text: string): unknown {
  * which does not accept React Native's `{uri, name, type}` FormData file objects; the request
  * failed on the device before reaching the server.
  *
- * The file is first copied to a temp folder under its ORIGINAL name, because the multipart
- * filename is the on-disk name and the backend uses it as the doc name + type (.pdf/.txt/.md);
- * the picker's cache copy can have a generated name.
+ * The multipart filename is the on-disk name, and the backend uses it as the doc name + type
+ * (.pdf/.txt/.md). The picker's cache copy can have a generated name, so if the names differ the
+ * file is staged under its ORIGINAL name first (copy, else read+write). If staging fails we still
+ * upload the picked file as-is rather than block the user.
  */
+function warnDev(step: string, err: unknown): void {
+  if (__DEV__) console.warn(`[upload] ${step} failed:`, err instanceof Error ? err.message : String(err));
+}
+
+async function stageWithName(source: File, dir: Directory, name: string): Promise<File | null> {
+  try {
+    dir.create({ intermediates: true });
+  } catch (err) {
+    warnDev("create staging dir", err);
+    return null;
+  }
+  const target = new File(dir, name);
+  try {
+    await source.copy(target);
+    return target;
+  } catch (err) {
+    warnDev("copy", err);
+  }
+  try {
+    await target.write(await source.bytes());
+    return target;
+  } catch (err) {
+    warnDev("read+write", err);
+    return null;
+  }
+}
+
 export async function uploadDoc(deviceId: string, file: PickedFile): Promise<UploadResult> {
   if (!API_URL) throw new ApiError(0, CONFIG_ERROR ?? "API URL not configured");
   const safeName = file.name.replace(/[\\/]/g, "_").trim() || "notes";
+  const source = new File(file.uri);
   const stagingDir = new Directory(Paths.cache, "uploads", Crypto.randomUUID());
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
   try {
-    let staged: File;
+    let sourceName: string | null = null;
     try {
-      stagingDir.create({ intermediates: true });
-      staged = new File(stagingDir, safeName);
-      await new File(file.uri).copy(staged);
-    } catch {
-      throw new ApiError(0, "Couldn't read the selected file. Try picking it again.");
+      sourceName = source.name;
+    } catch (err) {
+      warnDev("read picked file name", err);
     }
+    const toUpload =
+      sourceName === safeName ? source : ((await stageWithName(source, stagingDir, safeName)) ?? source);
 
     let result: { status: number; body: string };
     try {
-      result = await staged.upload(API_URL + "/docs", {
+      result = await toUpload.upload(API_URL + "/docs", {
         httpMethod: "POST",
         uploadType: UploadType.MULTIPART,
         fieldName: "file",
@@ -130,8 +159,15 @@ export async function uploadDoc(deviceId: string, file: PickedFile): Promise<Upl
         headers: { "X-Device-Id": deviceId, Accept: "application/json" },
         signal: controller.signal,
       });
-    } catch {
-      throw new ApiError(0, controller.signal.aborted ? "Upload took too long. Try a smaller file." : "Can't reach server. Check your connection.");
+    } catch (err) {
+      warnDev("upload", err);
+      if (controller.signal.aborted) throw new ApiError(0, "Upload took too long. Try a smaller file.");
+      const reason = err instanceof Error ? err.message : "";
+      // A read failure (bad/expired file URI) is not a network problem: say so.
+      if (/read|exist|permission|not found|no such file/i.test(reason)) {
+        throw new ApiError(0, "Couldn't read the selected file. Try picking it again.");
+      }
+      throw new ApiError(0, "Can't reach server. Check your connection.");
     }
 
     const body = parseJson(result.body); // non-2xx responses resolve too: surface "detail" verbatim

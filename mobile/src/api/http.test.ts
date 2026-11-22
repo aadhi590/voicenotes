@@ -1,12 +1,15 @@
 // Regression: in SDK 58 the global fetch is expo/fetch, which rejects React Native's
 // {uri, name, type} FormData objects — uploads failed on the phone before reaching the server.
-// uploadDoc must use expo-file-system's native multipart uploader with the ORIGINAL filename.
+// uploadDoc must use expo-file-system's native multipart uploader with the ORIGINAL filename,
+// and must not fail just because staging (copy) fails on a device.
 
 jest.mock("../config", () => ({ API_URL: "https://api.test", CONFIG_ERROR: null }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "tmp-uuid" }));
 
 const mockUpload = jest.fn();
 const mockCopy = jest.fn();
+const mockWrite = jest.fn();
+const mockBytes = jest.fn();
 const mockDelete = jest.fn();
 const mockCreate = jest.fn();
 
@@ -31,8 +34,17 @@ jest.mock("expo-file-system", () => {
     constructor(...parts: unknown[]) {
       this.uri = join(parts);
     }
+    get name() {
+      return this.uri.split("/").pop();
+    }
     copy(dest: File) {
       return mockCopy(this.uri, dest.uri);
+    }
+    bytes() {
+      return mockBytes(this.uri);
+    }
+    write(content: unknown) {
+      return mockWrite(this.uri, content);
     }
     upload(url: string, options: unknown) {
       return mockUpload(this.uri, url, options);
@@ -45,21 +57,25 @@ import { ApiError, uploadDoc } from "./http";
 
 const picked = { uri: "file:///cache/DocumentPicker/8f2c1a.pdf", name: "notes_os.pdf", mimeType: "application/pdf" };
 const STAGED = "file:///cache/uploads/tmp-uuid/notes_os.pdf";
+const OK = { status: 200, body: JSON.stringify({ doc_name: "notes_os.pdf", pages: 3, chunks: 3 }), headers: {} };
+const uploadedUri = (): string => mockUpload.mock.calls[0][0];
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(console, "warn").mockImplementation(() => undefined);
   mockCopy.mockResolvedValue(undefined);
+  mockBytes.mockResolvedValue(new Uint8Array([1, 2, 3]));
+  mockWrite.mockResolvedValue(undefined);
+  mockUpload.mockResolvedValue(OK);
   globalThis.fetch = jest.fn(() => Promise.reject(new Error("fetch must not be used for uploads"))) as unknown as typeof fetch;
 });
 
-test("uploads via native multipart with the original filename and device header, never fetch", async () => {
-  mockUpload.mockResolvedValue({ status: 200, body: JSON.stringify({ doc_name: "notes_os.pdf", pages: 3, chunks: 3 }), headers: {} });
-
+test("native multipart upload with the original filename + device header, never fetch", async () => {
   await expect(uploadDoc("dev-1", picked)).resolves.toEqual({ doc_name: "notes_os.pdf", pages: 3, chunks: 3 });
 
   expect(mockCopy).toHaveBeenCalledWith(picked.uri, STAGED);
-  const [stagedUri, url, options] = mockUpload.mock.calls[0];
-  expect(stagedUri).toBe(STAGED); // multipart filename = original name, not the picker's cache name
+  expect(uploadedUri()).toBe(STAGED); // multipart filename = original name, not the cache name
+  const [, url, options] = mockUpload.mock.calls[0];
   expect(url).toBe("https://api.test/docs");
   expect(options).toMatchObject({
     httpMethod: "POST",
@@ -72,30 +88,45 @@ test("uploads via native multipart with the original filename and device header,
   expect(mockDelete).toHaveBeenCalledWith("file:///cache/uploads/tmp-uuid"); // temp copy cleaned up
 });
 
+test("picked file already has the right name -> uploaded directly, no copy", async () => {
+  await uploadDoc("dev-1", { ...picked, uri: "file:///cache/DocumentPicker/notes_os.pdf" });
+  expect(mockCopy).not.toHaveBeenCalled();
+  expect(uploadedUri()).toBe("file:///cache/DocumentPicker/notes_os.pdf");
+});
+
+test("copy fails on the device -> read+write fallback still uploads under the original name", async () => {
+  mockCopy.mockRejectedValue(new Error("copy not supported"));
+  await expect(uploadDoc("dev-1", picked)).resolves.toMatchObject({ pages: 3 });
+  expect(mockWrite).toHaveBeenCalledWith(STAGED, new Uint8Array([1, 2, 3]));
+  expect(uploadedUri()).toBe(STAGED);
+});
+
+test("all staging fails -> uploads the picked file as-is instead of blocking the user", async () => {
+  mockCopy.mockRejectedValue(new Error("nope"));
+  mockWrite.mockRejectedValue(new Error("nope"));
+  await expect(uploadDoc("dev-1", picked)).resolves.toMatchObject({ pages: 3 });
+  expect(uploadedUri()).toBe(picked.uri);
+});
+
 test("backend 4xx detail is surfaced verbatim (scanned PDF)", async () => {
-  mockUpload.mockResolvedValue({
-    status: 422,
-    body: JSON.stringify({ detail: "No text found. Scanned PDFs are not supported." }),
-    headers: {},
-  });
+  mockUpload.mockResolvedValue({ status: 422, body: JSON.stringify({ detail: "No text found. Scanned PDFs are not supported." }), headers: {} });
   const err = await uploadDoc("dev-1", picked).catch((e: unknown) => e);
   expect(err).toBeInstanceOf(ApiError);
   expect(err).toMatchObject({ status: 422, message: "No text found. Scanned PDFs are not supported." });
   expect(mockDelete).toHaveBeenCalled();
 });
 
-test("network failure and unreadable file give clear messages", async () => {
+test("network failure vs unreadable file give different, clear messages", async () => {
   mockUpload.mockRejectedValue(new Error("socket hang up"));
   await expect(uploadDoc("dev-1", picked)).rejects.toMatchObject({ message: "Can't reach server. Check your connection." });
 
-  mockCopy.mockRejectedValue(new Error("permission denied"));
+  mockUpload.mockRejectedValue(new Error("File does not exist or cannot be read"));
   await expect(uploadDoc("dev-1", picked)).rejects.toMatchObject({
     message: "Couldn't read the selected file. Try picking it again.",
   });
 });
 
 test("path separators in the picked name can't escape the staging folder", async () => {
-  mockUpload.mockResolvedValue({ status: 200, body: "{}", headers: {} });
   await uploadDoc("dev-1", { ...picked, name: "../../evil/notes.pdf" });
   expect(mockCopy).toHaveBeenCalledWith(picked.uri, "file:///cache/uploads/tmp-uuid/.._.._evil_notes.pdf");
 });

@@ -1,0 +1,22 @@
+Photosynthesis - Study Notes
+
+Overview
+Photosynthesis is the process by which green plants, algae and some bacteria convert light energy into chemical energy stored in glucose. It takes place mainly in the chloroplasts of leaf mesophyll cells. The overall equation is: 6 CO2 + 6 H2O + light energy -> C6H12O6 + 6 O2. Oxygen is released as a by-product, which is the source of almost all oxygen in Earth's atmosphere.
+
+Chloroplast structure
+A chloroplast has a double membrane. Inside are stacks of flattened sacs called thylakoids; a stack is a granum. The fluid around the thylakoids is the stroma. Chlorophyll a and chlorophyll b are embedded in the thylakoid membranes and absorb mostly red and blue light, reflecting green light, which is why leaves look green.
+
+Light-dependent reactions
+These happen in the thylakoid membranes and need light directly. Photosystem II absorbs light and splits water (photolysis), releasing oxygen, protons and electrons. Electrons pass along the electron transport chain to Photosystem I, pumping protons into the thylakoid space. The proton gradient drives ATP synthase to make ATP. At Photosystem I, electrons are re-energised and used to reduce NADP+ to NADPH. Products: ATP, NADPH and O2.
+
+Light-independent reactions (Calvin cycle)
+These happen in the stroma and do not need light directly, but use the ATP and NADPH from the light-dependent stage. The enzyme RuBisCO fixes carbon dioxide onto ribulose bisphosphate (RuBP), a 5-carbon sugar, producing two molecules of 3-phosphoglycerate. ATP and NADPH reduce these to glyceraldehyde 3-phosphate (G3P). Some G3P leaves the cycle to build glucose and other sugars; the rest regenerates RuBP. Three turns of the cycle fix three CO2 molecules and produce one net G3P.
+
+Limiting factors
+The rate of photosynthesis is limited by light intensity, carbon dioxide concentration and temperature. Whichever factor is in shortest supply limits the rate. Temperature matters because enzymes such as RuBisCO slow down when cold and denature when too hot, typically above about 40 degrees Celsius.
+
+C4 and CAM plants
+C4 plants such as maize and sugarcane first fix CO2 into a 4-carbon compound in mesophyll cells, then release it around RuBisCO in bundle-sheath cells, reducing photorespiration in hot climates. CAM plants such as cacti open their stomata at night to take in CO2 and store it as malic acid, then use it during the day with stomata closed to save water.
+
+Exam tips
+Remember: light-dependent reactions make ATP, NADPH and oxygen; the Calvin cycle uses ATP and NADPH to turn CO2 into sugar. Oxygen comes from water, not from carbon dioxide.

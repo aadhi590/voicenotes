@@ -7,7 +7,7 @@ import { streamBuffer } from "../state/store";
 const SAMPLE_MS = 1000;
 
 /** Dev-only overlay (long-press the title): token-buffer flushes/sec + last server metrics. */
-export function PerfOverlay({ metrics }: { metrics: Metrics | null }) {
+export function PerfOverlay({ metrics, sttMs }: { metrics: Metrics | null; sttMs: number | null }) {
   const [rate, setRate] = useState(0);
   const last = useRef(streamBuffer.flushCount);
 
@@ -22,7 +22,7 @@ export function PerfOverlay({ metrics }: { metrics: Metrics | null }) {
 
   return (
     <View style={styles.box} pointerEvents="none">
-      <Text style={styles.text}>{`flushes/s ${rate}   total ${streamBuffer.flushCount}`}</Text>
+      <Text style={styles.text}>{`flushes/s ${rate}   total ${streamBuffer.flushCount}   stt ${sttMs ?? "-"}ms`}</Text>
       <Text style={styles.text}>
         {metrics
           ? `retrieval ${metrics.retrieval_ms}ms · ttft ${metrics.ttft_ms ?? "-"}ms · total ${metrics.total_ms}ms · ${metrics.tokens} tok`

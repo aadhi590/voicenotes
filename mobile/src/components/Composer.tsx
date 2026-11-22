@@ -28,11 +28,7 @@ function ComposerBase({ busy, disabled, onSend, onStop }: Props) {
 
   return (
     <View style={styles.wrap}>
-      {/* ───── VOICE SLOT (next phase): replace with the hold-to-talk mic button ───── */}
-      <View style={[styles.round, styles.mic]} accessibilityLabel="Voice input (coming soon)" accessibilityState={{ disabled: true }}>
-        <Text style={styles.micGlyph}>🎤</Text>
-      </View>
-
+      {/* Voice input lives in VoiceBar (the big mic above the composer). */}
       <TextInput
         style={styles.input}
         value={text}
@@ -93,8 +89,6 @@ const styles = StyleSheet.create({
     paddingBottom: 11,
   },
   round: { width: SIZE, height: SIZE, borderRadius: SIZE / 2, alignItems: "center", justifyContent: "center" },
-  mic: { backgroundColor: colors.surfaceAlt, opacity: 0.45 },
-  micGlyph: { fontSize: 18 },
   send: { backgroundColor: colors.accent },
   sendDisabled: { opacity: 0.4 },
   sendGlyph: { color: "#fff", fontSize: 22, fontWeight: "800", marginTop: -2 },

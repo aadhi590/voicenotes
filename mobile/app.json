@@ -24,7 +24,9 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-audio",
+      "expo-asset"
     ],
     "backgroundColor": "#0E1116",
     "extra": {

@@ -26,7 +26,9 @@ export function useAssistant(): Assistant {
   const connection = useStore((s) => s.connection);
   const messages = useStore((s) => s.messages);
   const lastMetrics = useStore((s) => s.machine.lastMetrics);
-  return { status, busy: isBusy(status), connection, messages, lastMetrics, ask: askQuestion, cancel: cancelAnswer, retry: askQuestion };
+  const speaking = useStore((s) => s.speaking);
+  // Speaking counts as busy: Stop is shown, and a typed send barges in (stops TTS first).
+  return { status, busy: isBusy(status) || speaking, connection, messages, lastMetrics, ask: askQuestion, cancel: cancelAnswer, retry: askQuestion };
 }
 
 /** Call once at the app root: device id, socket, docs; reconnect fast when foregrounded. */

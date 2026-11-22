@@ -1,4 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
+import { File } from "expo-file-system";
 import { create } from "zustand";
 
 import * as api from "../api/http";
@@ -6,6 +8,8 @@ import type { DocInfo, PickedFile, UploadResult } from "../api/http";
 import { AskSocket, type ConnectionStatus, type ServerEvent } from "../api/wsClient";
 import { CONFIG_ERROR, MAX_QUESTION_CHARS, WS_URL } from "../config";
 import { TokenBuffer } from "../hooks/useTokenBuffer";
+import { isUselessTranscript } from "../voice/silence";
+import { Speaker } from "../voice/speaker";
 import { getDeviceId } from "./deviceId";
 import { type MachineEvent, type MachineState, type Metrics, type Source, initialMachineState, isBusy, reducer } from "./machine";
 
@@ -33,6 +37,11 @@ export interface AppState {
   docsError: string | null;
   lastUpload: UploadResult | null;
   serverWarning: string | null;
+  // voice
+  speaking: boolean; // TTS is playing (can outlast the stream)
+  autoSpeak: boolean;
+  voiceHint: string | null; // "Didn't catch that", mic/STT problems
+  lastSttMs: number | null;
 }
 
 export const useStore = create<AppState>(() => ({
@@ -47,7 +56,16 @@ export const useStore = create<AppState>(() => ({
   docsError: null,
   lastUpload: null,
   serverWarning: null,
+  speaking: false,
+  autoSpeak: true,
+  voiceHint: null,
+  lastSttMs: null,
 }));
+
+/** The one TTS speaker. Tied to the active question id: old-id sentences are dropped. */
+export const speaker = new Speaker((speaking) => useStore.setState({ speaking }));
+const AUTO_SPEAK_KEY = "voicenotes.autoSpeak";
+let sttGeneration = 0; // bumps on every new recording / typed ask: stale transcripts are dropped
 
 /** The streaming answer's text. Only StreamingBubble subscribes to it. */
 export const streamBuffer = new TokenBuffer();
@@ -87,12 +105,14 @@ function onServerEvent(event: ServerEvent): void {
     case "token":
       if (!active) return; // stale id (cancelled / barged-in): drop
       streamBuffer.append(event.text);
+      speaker.feed(event.id, event.text); // no-op unless auto-speak began this id
       dispatch({ type: "TOKEN", id: event.id }); // no-op object after the first token
       return;
     case "done": {
       if (!active) return;
       const text = streamBuffer.finish();
       streamBuffer.reset();
+      speaker.finish(event.id); // speak the last partial sentence
       const message: ChatMessage = { id: event.id, role: "assistant", text, sources: machine.sources, metrics: event.metrics };
       dispatch({ type: "DONE", id: event.id, metrics: event.metrics }, withMessage(message));
       return;
@@ -103,6 +123,7 @@ function onServerEvent(event: ServerEvent): void {
     case "error": {
       const relevant = event.id === null ? isBusy(machine.status) : active;
       if (!relevant) return;
+      speaker.stop();
       const partial = archivePartial(event.id ?? "conn", machine.sources);
       const next = reducer(machine, { type: "ERROR", id: event.id, message: event.message });
       const errorMessage: ChatMessage = {
@@ -123,6 +144,9 @@ function onServerEvent(event: ServerEvent): void {
 export async function bootstrap(): Promise<void> {
   const deviceId = await getDeviceId();
   useStore.setState({ deviceId });
+  AsyncStorage.getItem(AUTO_SPEAK_KEY)
+    .then((v) => v !== null && useStore.setState({ autoSpeak: v === "1" }))
+    .catch(() => undefined);
   if (CONFIG_ERROR || !WS_URL) return;
   if (!socket) {
     socket = new AskSocket({
@@ -148,9 +172,12 @@ export function wakeConnection(): void {
 export function askQuestion(rawText: string): void {
   const question = rawText.trim().slice(0, MAX_QUESTION_CHARS);
   if (!question) return;
-  const { machine } = useStore.getState();
+  const { machine, autoSpeak } = useStore.getState();
   const id = Crypto.randomUUID();
+  sttGeneration += 1; // a typed question supersedes any transcript still in flight
 
+  // Barge-in order: (a) stop TTS + clear its queue, (b) cancel the active WS question, (c) ask.
+  speaker.stop();
   let extra: Partial<AppState> = {};
   if (isBusy(machine.status) && machine.activeId) {
     socket?.cancel(machine.activeId); // barge-in
@@ -160,7 +187,8 @@ export function askQuestion(rawText: string): void {
   }
   const base = extra.messages ?? useStore.getState().messages;
   const userMessage: ChatMessage = { id: `${id}-q`, role: "user", text: question, sources: EMPTY };
-  dispatch({ type: "ASK", id, question }, { messages: [...base, userMessage] });
+  dispatch({ type: "ASK", id, question }, { messages: [...base, userMessage], voiceHint: null });
+  if (autoSpeak) speaker.begin(id);
 
   if (!socket) {
     onServerEvent({ type: "error", id, message: CONFIG_ERROR ?? "Not connected yet" });
@@ -169,11 +197,75 @@ export function askQuestion(rawText: string): void {
   socket.ask(id, question);
 }
 
+/** Stop button / barge-in: silence TTS first, then cancel the in-flight answer (if any). */
 export function cancelAnswer(): void {
+  speaker.stop();
   const { machine } = useStore.getState();
   if (!isBusy(machine.status) || !machine.activeId) return;
   socket?.cancel(machine.activeId);
   dispatch({ type: "CANCEL" }, archivePartial(machine.activeId, machine.sources));
+}
+
+export function setAutoSpeak(on: boolean): void {
+  useStore.setState({ autoSpeak: on });
+  if (!on) speaker.stop();
+  AsyncStorage.setItem(AUTO_SPEAK_KEY, on ? "1" : "0").catch(() => undefined);
+}
+
+// ---------------------------------------------------------------- voice
+
+export const DIDNT_CATCH = "Didn't catch that";
+
+/** Mic tapped: interrupt whatever is happening (TTS, answer) and enter recording. */
+export function beginRecording(): void {
+  cancelAnswer(); // (a) Speech.stop + clear queue, (b) cancel WS question
+  sttGeneration += 1;
+  dispatch({ type: "RESET" }); // error -> idle so START_RECORDING applies
+  dispatch({ type: "START_RECORDING" }, { voiceHint: null });
+}
+
+/** Recording was discarded (silence, too short, mic problem): back to idle with a hint. */
+export function abandonRecording(hint: string | null): void {
+  sttGeneration += 1;
+  const { status } = useStore.getState().machine;
+  if (status === "recording" || status === "transcribing") dispatch({ type: "RESET" }, { voiceHint: hint });
+  else useStore.setState({ voiceHint: hint });
+}
+
+function deleteQuietly(uri: string): void {
+  try {
+    const f = new File(uri);
+    if (f.exists) f.delete();
+  } catch {
+    /* temp cache file */
+  }
+}
+
+/** Recording finished: /stt, drop useless transcripts, then ask (shows the transcript as the user bubble). */
+export async function transcribeAndAsk(uri: string, peakDb: number): Promise<void> {
+  const generation = ++sttGeneration;
+  dispatch({ type: "STOP_RECORDING" }); // -> transcribing
+  const { deviceId } = useStore.getState();
+  let text = "";
+  try {
+    if (!deviceId) throw new Error("Not ready yet");
+    const result = await api.transcribeAudio(deviceId, uri);
+    text = result.text.trim();
+    useStore.setState({ lastSttMs: result.ms });
+  } catch (err) {
+    if (generation === sttGeneration) abandonRecording(err instanceof Error ? err.message : "Transcription failed");
+    return;
+  } finally {
+    deleteQuietly(uri);
+  }
+  // Superseded (typed question, new recording) while we were waiting: drop it.
+  if (generation !== sttGeneration || useStore.getState().machine.status !== "transcribing") return;
+  if (isUselessTranscript(text, peakDb)) {
+    abandonRecording(DIDNT_CATCH);
+    return;
+  }
+  dispatch({ type: "TRANSCRIBED", text });
+  askQuestion(text);
 }
 
 // ---------------------------------------------------------------- notes

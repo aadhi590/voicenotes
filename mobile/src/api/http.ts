@@ -37,9 +37,20 @@ const EXT_BY_MIME: Record<string, string> = {
   "text/plain": ".txt",
 };
 
+/** Android's picker gives a content-URI id ("document:1000117632"), not the display name. */
+function looksLikeContentId(name: string): boolean {
+  return name.includes(":") || /^\d+$/.test(name.replace(/\.[a-z0-9]+$/i, ""));
+}
+
+function timestampName(now: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `notes-${pad(now.getHours())}${pad(now.getMinutes())}`;
+}
+
 /** The backend picks the parser by extension: make sure the name has a supported one. */
-export function uploadName(rawName: string, mimeType?: string): string {
-  const base = rawName.replace(/[\\/]/g, "_").trim() || "notes";
+export function uploadName(rawName: string, mimeType?: string, now: Date = new Date()): string {
+  const cleaned = rawName.replace(/[\\/]/g, "_").trim();
+  const base = !cleaned ? "notes" : looksLikeContentId(cleaned) ? timestampName(now) : cleaned;
   if (/\.(pdf|txt|md)$/i.test(base)) return base;
   const ext = mimeType ? (EXT_BY_MIME[mimeType] ?? (mimeType.startsWith("text/") ? ".txt" : "")) : "";
   return base + ext;
@@ -203,6 +214,33 @@ export async function uploadDoc(deviceId: string, file: PickedFile): Promise<Upl
       /* temp cache; the OS cleans it eventually */
     }
   }
+}
+
+export interface SttResult {
+  text: string;
+  ms: number;
+}
+
+/** POST the recorded m4a to /stt. The recording is the app's own cache file, so it is readable. */
+export async function transcribeAudio(deviceId: string, uri: string): Promise<SttResult> {
+  if (!API_URL) throw new ApiError(0, CONFIG_ERROR ?? "API URL not configured");
+  let result: { status: number; body: string };
+  try {
+    result = await new File(uri).upload(API_URL + "/stt", {
+      httpMethod: "POST",
+      uploadType: UploadType.MULTIPART,
+      fieldName: "file",
+      mimeType: "audio/m4a",
+      headers: { "X-Device-Id": deviceId, Accept: "application/json" },
+    });
+  } catch (err) {
+    warnDev("stt upload", err);
+    throw new ApiError(0, "Can't reach server. Check your connection.");
+  }
+  const body = parseJson(result.body);
+  if (result.status < 200 || result.status >= 300) throw new ApiError(result.status, detailOf(body, result.status));
+  const parsed = (body ?? {}) as Partial<SttResult>;
+  return { text: typeof parsed.text === "string" ? parsed.text : "", ms: typeof parsed.ms === "number" ? parsed.ms : 0 };
 }
 
 export function deleteDoc(deviceId: string, docName: string): Promise<{ deleted: string }> {

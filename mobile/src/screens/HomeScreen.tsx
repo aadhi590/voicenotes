@@ -8,8 +8,10 @@ import { NotesPanel, pickAndUpload } from "../components/NotesPanel";
 import { PerfOverlay } from "../components/PerfOverlay";
 import { SourceSheet } from "../components/SourceSheet";
 import { ConnectionDot, StatePill } from "../components/StatusBar";
+import { VoiceBar } from "../components/VoiceBar";
 import { CONFIG_ERROR } from "../config";
 import { useAssistant, useAssistantBootstrap } from "../hooks/useAssistant";
+import { useSpeaker } from "../hooks/useSpeaker";
 import type { Source } from "../state/machine";
 import { useStore } from "../state/store";
 import { colors, radius } from "../theme";
@@ -22,6 +24,8 @@ export function HomeScreen() {
   const uploading = useStore((s) => s.docsBusy);
   const docsError = useStore((s) => s.docsError);
   const serverWarning = useStore((s) => s.serverWarning);
+  const sttMs = useStore((s) => s.lastSttMs);
+  const { autoSpeak, setAutoSpeak } = useSpeaker();
 
   const [notesOpen, setNotesOpen] = useState(false);
   const [source, setSource] = useState<Source | null>(null);
@@ -30,6 +34,7 @@ export function HomeScreen() {
   const openNotes = useCallback(() => setNotesOpen(true), []);
   const closeNotes = useCallback(() => setNotesOpen(false), []);
   const closeSource = useCallback(() => setSource(null), []);
+  const toggleSpeak = useCallback(() => setAutoSpeak(!autoSpeak), [autoSpeak, setAutoSpeak]);
   const togglePerf = useCallback(() => {
     if (__DEV__) setPerf((p) => !p);
   }, []);
@@ -46,6 +51,15 @@ export function HomeScreen() {
         <ConnectionDot status={connection} />
         <StatePill status={status} />
         <View style={styles.spacer} />
+        <Pressable
+          onPress={toggleSpeak}
+          style={[styles.notesBtn, !autoSpeak && styles.speakOff]}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: autoSpeak }}
+          accessibilityLabel="Auto-speak answers"
+        >
+          <Text style={styles.notesText}>{autoSpeak ? "🔊 Auto-speak" : "🔇 Muted"}</Text>
+        </Pressable>
         <Pressable onPress={openNotes} style={styles.notesBtn} accessibilityRole="button">
           <Text style={styles.notesText}>{`Notes (${docCount})`}</Text>
         </Pressable>
@@ -58,7 +72,7 @@ export function HomeScreen() {
       ) : null}
 
       <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        {perf ? <PerfOverlay metrics={lastMetrics} /> : null}
+        {perf ? <PerfOverlay metrics={lastMetrics} sttMs={sttMs} /> : null}
         {showEmpty ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>Upload your notes to start asking questions</Text>
@@ -71,6 +85,7 @@ export function HomeScreen() {
         ) : (
           <ChatList messages={messages} onSourcePress={setSource} onRetry={retry} />
         )}
+        <VoiceBar disabled={!!CONFIG_ERROR} />
         <Composer busy={busy} disabled={!!CONFIG_ERROR} onSend={ask} onStop={cancel} />
       </KeyboardAvoidingView>
 
@@ -95,6 +110,7 @@ const styles = StyleSheet.create({
   spacer: { flex: 1 },
   notesBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt },
   notesText: { color: colors.text, fontWeight: "600" },
+  speakOff: { opacity: 0.6 },
   banner: { backgroundColor: colors.danger, paddingHorizontal: 14, paddingVertical: 10 },
   bannerText: { color: "#fff", fontWeight: "600" },
   body: { flex: 1 },

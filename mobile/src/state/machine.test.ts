@@ -108,6 +108,41 @@ describe("assistant state machine", () => {
     expect(reducer(err, { type: "ASK", id: "b", question: "again" })).toMatchObject({ status: "thinking", activeId: "b", error: null });
   });
 
+  test("full voice loop: idle -> recording -> transcribing -> (TRANSCRIBED) -> thinking -> streaming -> idle", () => {
+    let s = run([{ type: "START_RECORDING" }, { type: "STOP_RECORDING" }]);
+    expect(s.status).toBe("transcribing");
+    s = run([{ type: "TRANSCRIBED", text: "what is rr" }, { type: "ASK", id: "v1", question: "what is rr" }], s);
+    expect(s).toMatchObject({ status: "thinking", activeId: "v1" });
+    s = run([{ type: "TOKEN", id: "v1" }, { type: "DONE", id: "v1", metrics }], s);
+    expect(s.status).toBe("idle");
+  });
+
+  test("voice barge-in: CANCEL then START_RECORDING; the old answer's late events are dropped", () => {
+    const streaming = run([{ type: "ASK", id: "old", question: "q" }, { type: "TOKEN", id: "old" }]);
+    // START_RECORDING alone is refused mid-answer: the store must cancel first.
+    expect(reducer(streaming, { type: "START_RECORDING" })).toBe(streaming);
+    const recording = run([{ type: "CANCEL" }, { type: "START_RECORDING" }], streaming);
+    expect(recording).toMatchObject({ status: "recording", activeId: null });
+    for (const late of [
+      { type: "TOKEN", id: "old" },
+      { type: "DONE", id: "old", metrics },
+      { type: "ERROR", id: "old", message: "x" },
+    ] as MachineEvent[]) {
+      expect(reducer(recording, late)).toBe(recording);
+    }
+  });
+
+  test("discarded recording / failed STT: RESET from recording or transcribing -> idle", () => {
+    expect(run([{ type: "START_RECORDING" }, { type: "RESET" }]).status).toBe("idle");
+    expect(run([{ type: "START_RECORDING" }, { type: "STOP_RECORDING" }, { type: "RESET" }]).status).toBe("idle");
+  });
+
+  test("typed ASK while transcribing supersedes the voice turn; a late TRANSCRIBED is ignored", () => {
+    const s = run([{ type: "START_RECORDING" }, { type: "STOP_RECORDING" }, { type: "ASK", id: "t", question: "typed" }]);
+    expect(s).toMatchObject({ status: "thinking", activeId: "t" });
+    expect(reducer(s, { type: "TRANSCRIBED", text: "late" })).toBe(s);
+  });
+
   test("voice states exist: idle -> recording -> transcribing -> idle", () => {
     const s1 = reducer(initialMachineState, { type: "START_RECORDING" });
     expect(s1.status).toBe("recording");

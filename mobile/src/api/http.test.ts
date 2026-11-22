@@ -159,3 +159,11 @@ test("uploadName keeps supported extensions and adds one from the MIME type", ()
   expect(uploadName("photo", "image/png")).toBe("photo"); // backend returns its clear 400
   expect(uploadName("  ", undefined)).toBe("notes");
 });
+
+test("uploadName replaces Android content-URI ids with notes-HHmm", () => {
+  const at = new Date(2026, 10, 22, 9, 5);
+  expect(uploadName("document:1000117632", "application/pdf", at)).toBe("notes-0905.pdf");
+  expect(uploadName("document:1000117632.pdf", "application/pdf", at)).toBe("notes-0905.pdf");
+  expect(uploadName("1000117632", "text/plain", at)).toBe("notes-0905.txt");
+  expect(uploadName("OS notes 2.pdf", "application/pdf", at)).toBe("OS notes 2.pdf"); // real names kept
+});

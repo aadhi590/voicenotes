@@ -162,7 +162,7 @@ def is_rate_limited(msg: dict) -> bool:
     return msg.get("type") == "error" and "rate limit" in msg.get("message", "").lower()
 
 
-async def _backoff(question: str) -> None:
+async def backoff(question: str) -> None:
     RATE_LIMIT_HITS.append(question)
     print(f"         (Groq rate limit -> waiting {RATE_LIMIT_WAIT_S}s and retrying)", flush=True)
     await asyncio.sleep(RATE_LIMIT_WAIT_S)
@@ -176,7 +176,7 @@ async def ask(ws, question: str) -> Answer:
         await collect(ws, answer)
         if not is_rate_limited(answer.terminal):
             return answer
-        await _backoff(question)
+        await backoff(question)
     return answer
 
 
@@ -194,7 +194,7 @@ async def start_streaming(ws, question: str, prefix: str = "") -> Answer:
                 return answer
             if is_rate_limited(msg):
                 break
-        await _backoff(question)
+        await backoff(question)
     return answer
 
 

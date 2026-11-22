@@ -7,7 +7,8 @@ import time
 import uuid
 
 from common import (
-    DOC_FILES, Answer, Ctx, ask, collect, connect, is_rate_limited, new_device, recv, send, start_streaming, upload_all,
+    DOC_FILES, MAX_RATE_LIMIT_RETRIES, Answer, Ctx, ask, backoff, collect, connect, is_rate_limited, new_device, recv,
+    send, start_streaming, upload_all,
 )
 from questions import LONG_ANSWER_QUESTION, QUESTIONS
 
@@ -15,24 +16,65 @@ CANCEL_BUDGET_MS = 300
 DRAIN_S = 0.5
 
 
+async def measure_rtt_ms(ws) -> float:
+    started = time.perf_counter()
+    await send(ws, {"type": "ping"})
+    while await recv(ws) != {"type": "pong"}:
+        pass
+    return (time.perf_counter() - started) * 1000
+
+
+async def _stream_then_cancel(ws, n_tokens: int) -> tuple[Answer, float]:
+    """Ask, wait for `sources` + n tokens, send cancel. Returns (answer, ms from cancel to terminal)."""
+    for _ in range(MAX_RATE_LIMIT_RETRIES):
+        answer = Answer(qid=uuid.uuid4().hex[:8], question=LONG_ANSWER_QUESTION)
+        await send(ws, {"type": "ask", "id": answer.qid, "question": answer.question})
+        tokens, seen_sources, finished, limited = 0, False, False, False
+        while True:
+            msg = await recv(ws)
+            answer.events.append((time.perf_counter(), msg))
+            if msg.get("id") != answer.qid:
+                continue
+            if is_rate_limited(msg):
+                limited = True
+                break
+            if msg["type"] == "sources":
+                seen_sources = True
+            elif msg["type"] == "token":
+                tokens += 1
+            elif msg["type"] in ("done", "error", "cancelled"):
+                finished = True
+                break
+            if seen_sources and tokens >= n_tokens:
+                break
+        if limited:
+            await backoff(answer.question)
+            continue
+        sent_at = time.perf_counter()
+        if not finished:
+            await send(ws, {"type": "cancel", "id": answer.qid})
+            await collect(ws, answer)
+        return answer, (answer.events[-1][0] - sent_at) * 1000
+    return answer, float("inf")
+
+
 async def cancel_after_tokens(ctx: Ctx, ws, n_tokens: int = 3) -> None:
+    """Over a real network the whole answer can finish before the cancel arrives (Groq streams
+    ~250 tokens in a few hundred ms). The server then correctly ignores the cancel, which proves
+    nothing, so retry with an earlier cancel point. The budget allows for the network round trip."""
     r = ctx.report
-    answer = await start_streaming(ws, LONG_ANSWER_QUESTION)
-    tokens = answer.types.count("token")
-    while tokens < n_tokens:
-        msg = await recv(ws)
-        answer.events.append((time.perf_counter(), msg))
-        if msg["type"] == "token":
-            tokens += 1
-        if msg["type"] in ("done", "error"):
+    rtt = await measure_rtt_ms(ws)
+    budget = CANCEL_BUDGET_MS + rtt
+    for cancel_at in (n_tokens, 1, 0):
+        answer, latency_ms = await _stream_then_cancel(ws, cancel_at)
+        if answer.terminal.get("type") == "cancelled":
             break
-    sent_at = time.perf_counter()
-    await send(ws, {"type": "cancel", "id": answer.qid})
-    await collect(ws, answer)
-    latency_ms = (answer.events[-1][0] - sent_at) * 1000
-    r.check(f"cancel after {n_tokens} tokens -> 'cancelled' within {CANCEL_BUDGET_MS} ms",
-            answer.terminal.get("type") == "cancelled" and latency_ms < CANCEL_BUDGET_MS,
-            f"terminal={answer.terminal.get('type')} latency={latency_ms:.0f}ms")
+        r.note(f"answer finished before the cancel arrived (cancel after {cancel_at} tokens, rtt {rtt:.0f} ms); "
+               "retrying with an earlier cancel")
+    r.check(f"cancel mid-stream -> 'cancelled' within {CANCEL_BUDGET_MS} ms + RTT",
+            answer.terminal.get("type") == "cancelled" and latency_ms < budget,
+            f"cancel after {cancel_at} tokens, terminal={answer.terminal.get('type')}, "
+            f"latency={latency_ms:.0f} ms, rtt={rtt:.0f} ms, budget={budget:.0f} ms")
 
     # Drain: anything for this id after 'cancelled' is a bug. Ping flushes the pipe.
     await asyncio.sleep(DRAIN_S)

@@ -10,21 +10,25 @@
 | GitHub | https://github.com/aadhi590/voicenotes — Railway deploys `backend/` from `main` |
 | CI | GitHub Actions `backend-tests` (pytest on Python 3.11, Groq mocked) on every push / PR |
 
-## How deploys work
+## How deploys work (manual)
 
-```
-git push origin main
-   ├─ GitHub Actions: pytest (backend-tests)
-   └─ Railway: build backend/ (Railpack, Python 3.11 from .python-version) → healthcheck /health → switch traffic
+Deploys are **manual by choice**: the Railway GitHub App is not installed, so `git push` does **not** redeploy.
+GitHub Actions still runs pytest on every push, so check that CI is green first.
+
+```bash
+git push origin main                              # CI: backend-tests must be green
+cd app1/backend
+railway up --detach --service api                 # upload backend/ → build (Railpack, Python 3.11) → /health → switch
+railway logs --service api                        # expect: startup llm=... groq_key_set=True python=3.11.x
+.venv/Scripts/python scripts/e2e/run_all.py --base https://api-production-90b19b2d.up.railway.app --quick
 ```
 
-- Only changes under `backend/` trigger a Railway deploy (watch pattern), so the future `mobile/` app won't redeploy the API.
+- `railway up` deploys your **local working tree**, including uncommitted changes. Deploy from a clean `main` so production matches GitHub.
+- `backend/.railwayignore` keeps `.env`, `.venv`, tests and scripts out of the upload.
 - A failed healthcheck keeps the previous deployment serving. Crashes restart up to 3 times.
-- Optional, one click: service `api` → Settings → Source → **Wait for CI**, so a red test run blocks the deploy. This setting can't be set from code on this project.
-- Expect in the deploy logs: `startup llm=qwen/qwen3.8-27b stt=whisper-large-v3-turbo groq_key_set=True python=3.11.x`
-
-Manual deploy of local, uncommitted code (bypasses GitHub): `cd backend && railway up --detach --service api`
-(`backend/.railwayignore` keeps `.env`, `.venv`, tests and scripts out of the upload.)
+- To switch to push-to-deploy later: install the Railway GitHub App on `aadhi590` with access to `voicenotes`
+  (service `api` → Settings → Source). The source, root `/backend` and `/backend/**` watch pattern are already
+  set in `.railway/railway.ts`. Optionally turn on **Wait for CI** there too.
 
 ## Infrastructure as code
 

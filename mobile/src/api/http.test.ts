@@ -53,9 +53,19 @@ jest.mock("expo-file-system", () => {
   return { Directory, File, Paths: { cache: { uri: "file:///cache" } }, UploadType: { BINARY_CONTENT: 0, MULTIPART: 1 } };
 });
 
-import { ApiError, uploadDoc } from "./http";
+import { File } from "expo-file-system";
 
-const picked = { uri: "file:///cache/DocumentPicker/8f2c1a.pdf", name: "notes_os.pdf", mimeType: "application/pdf" };
+import { ApiError, uploadDoc, uploadName } from "./http";
+
+const PICKED_URI = "content://com.android.providers.downloads/document/42";
+// The File instance from File.pickFileAsync carries the granted READ permission.
+const pickedFile = (uri: string = PICKED_URI): File => new File(uri);
+const pick = (overrides: Partial<{ file: File; name: string; mimeType: string }> = {}) => ({
+  file: pickedFile(),
+  name: "notes_os.pdf",
+  mimeType: "application/pdf",
+  ...overrides,
+});
 const STAGED = "file:///cache/uploads/tmp-uuid/notes_os.pdf";
 const OK = { status: 200, body: JSON.stringify({ doc_name: "notes_os.pdf", pages: 3, chunks: 3 }), headers: {} };
 const uploadedUri = (): string => mockUpload.mock.calls[0][0];
@@ -71,9 +81,9 @@ beforeEach(() => {
 });
 
 test("native multipart upload with the original filename + device header, never fetch", async () => {
-  await expect(uploadDoc("dev-1", picked)).resolves.toEqual({ doc_name: "notes_os.pdf", pages: 3, chunks: 3 });
+  await expect(uploadDoc("dev-1", pick())).resolves.toEqual({ doc_name: "notes_os.pdf", pages: 3, chunks: 3 });
 
-  expect(mockCopy).toHaveBeenCalledWith(picked.uri, STAGED);
+  expect(mockCopy).toHaveBeenCalledWith(PICKED_URI, STAGED);
   expect(uploadedUri()).toBe(STAGED); // multipart filename = original name, not the cache name
   const [, url, options] = mockUpload.mock.calls[0];
   expect(url).toBe("https://api.test/docs");
@@ -89,14 +99,14 @@ test("native multipart upload with the original filename + device header, never 
 });
 
 test("picked file already has the right name -> uploaded directly, no copy", async () => {
-  await uploadDoc("dev-1", { ...picked, uri: "file:///cache/DocumentPicker/notes_os.pdf" });
+  await uploadDoc("dev-1", pick({ file: pickedFile("file:///cache/DocumentPicker/notes_os.pdf") }));
   expect(mockCopy).not.toHaveBeenCalled();
   expect(uploadedUri()).toBe("file:///cache/DocumentPicker/notes_os.pdf");
 });
 
 test("copy fails on the device -> read+write fallback still uploads under the original name", async () => {
   mockCopy.mockRejectedValue(new Error("copy not supported"));
-  await expect(uploadDoc("dev-1", picked)).resolves.toMatchObject({ pages: 3 });
+  await expect(uploadDoc("dev-1", pick())).resolves.toMatchObject({ pages: 3 });
   expect(mockWrite).toHaveBeenCalledWith(STAGED, new Uint8Array([1, 2, 3]));
   expect(uploadedUri()).toBe(STAGED);
 });
@@ -104,13 +114,13 @@ test("copy fails on the device -> read+write fallback still uploads under the or
 test("all staging fails -> uploads the picked file as-is instead of blocking the user", async () => {
   mockCopy.mockRejectedValue(new Error("nope"));
   mockWrite.mockRejectedValue(new Error("nope"));
-  await expect(uploadDoc("dev-1", picked)).resolves.toMatchObject({ pages: 3 });
-  expect(uploadedUri()).toBe(picked.uri);
+  await expect(uploadDoc("dev-1", pick())).resolves.toMatchObject({ pages: 3 });
+  expect(uploadedUri()).toBe(PICKED_URI);
 });
 
 test("backend 4xx detail is surfaced verbatim (scanned PDF)", async () => {
   mockUpload.mockResolvedValue({ status: 422, body: JSON.stringify({ detail: "No text found. Scanned PDFs are not supported." }), headers: {} });
-  const err = await uploadDoc("dev-1", picked).catch((e: unknown) => e);
+  const err = await uploadDoc("dev-1", pick()).catch((e: unknown) => e);
   expect(err).toBeInstanceOf(ApiError);
   expect(err).toMatchObject({ status: 422, message: "No text found. Scanned PDFs are not supported." });
   expect(mockDelete).toHaveBeenCalled();
@@ -118,15 +128,34 @@ test("backend 4xx detail is surfaced verbatim (scanned PDF)", async () => {
 
 test("network failure vs unreadable file give different, clear messages", async () => {
   mockUpload.mockRejectedValue(new Error("socket hang up"));
-  await expect(uploadDoc("dev-1", picked)).rejects.toMatchObject({ message: "Can't reach server. Check your connection." });
+  await expect(uploadDoc("dev-1", pick())).rejects.toMatchObject({ message: "Can't reach server. Check your connection." });
 
   mockUpload.mockRejectedValue(new Error("File does not exist or cannot be read"));
-  await expect(uploadDoc("dev-1", picked)).rejects.toMatchObject({
+  await expect(uploadDoc("dev-1", pick())).rejects.toMatchObject({
     message: "Couldn't read the selected file. Try picking it again.",
   });
 });
 
 test("path separators in the picked name can't escape the staging folder", async () => {
-  await uploadDoc("dev-1", { ...picked, name: "../../evil/notes.pdf" });
-  expect(mockCopy).toHaveBeenCalledWith(picked.uri, "file:///cache/uploads/tmp-uuid/.._.._evil_notes.pdf");
+  await uploadDoc("dev-1", pick({ name: "../../evil/notes.pdf" }));
+  expect(mockCopy).toHaveBeenCalledWith(PICKED_URI, "file:///cache/uploads/tmp-uuid/.._.._evil_notes.pdf");
+});
+
+test("uses the picked File instance itself (it holds the READ permission), never a new File(uri)", async () => {
+  const file = pickedFile();
+  const own = jest.fn().mockResolvedValue(undefined);
+  (file as unknown as { copy: typeof own }).copy = own;
+  await uploadDoc("dev-1", pick({ file }));
+  expect(own).toHaveBeenCalledTimes(1);
+  expect(mockCopy).not.toHaveBeenCalled();
+});
+
+test("uploadName keeps supported extensions and adds one from the MIME type", () => {
+  expect(uploadName("notes_os.pdf", "application/pdf")).toBe("notes_os.pdf");
+  expect(uploadName("Lecture 3.MD", "application/octet-stream")).toBe("Lecture 3.MD");
+  expect(uploadName("document_42", "application/pdf")).toBe("document_42.pdf");
+  expect(uploadName("readme", "text/markdown")).toBe("readme.md");
+  expect(uploadName("log", "text/csv")).toBe("log.txt");
+  expect(uploadName("photo", "image/png")).toBe("photo"); // backend returns its clear 400
+  expect(uploadName("  ", undefined)).toBe("notes");
 });

@@ -20,10 +20,29 @@ export interface UploadResult {
   pages: number;
   chunks: number;
 }
+/**
+ * A file chosen with File.pickFileAsync. The File instance itself carries the read permission
+ * the picker granted, so it must be passed through as-is (a new File(uri) would not have it).
+ */
 export interface PickedFile {
-  uri: string;
+  file: File;
   name: string;
   mimeType?: string;
+}
+
+const EXT_BY_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "text/markdown": ".md",
+  "text/x-markdown": ".md",
+  "text/plain": ".txt",
+};
+
+/** The backend picks the parser by extension: make sure the name has a supported one. */
+export function uploadName(rawName: string, mimeType?: string): string {
+  const base = rawName.replace(/[\\/]/g, "_").trim() || "notes";
+  if (/\.(pdf|txt|md)$/i.test(base)) return base;
+  const ext = mimeType ? (EXT_BY_MIME[mimeType] ?? (mimeType.startsWith("text/") ? ".txt" : "")) : "";
+  return base + ext;
 }
 
 /** An HTTP failure with a message that is safe to show the user verbatim. */
@@ -100,10 +119,13 @@ function parseJson(text: string): unknown {
  * which does not accept React Native's `{uri, name, type}` FormData file objects; the request
  * failed on the device before reaching the server.
  *
- * The multipart filename is the on-disk name, and the backend uses it as the doc name + type
- * (.pdf/.txt/.md). The picker's cache copy can have a generated name, so if the names differ the
- * file is staged under its ORIGINAL name first (copy, else read+write). If staging fails we still
- * upload the picked file as-is rather than block the user.
+ * The file must come from File.pickFileAsync: on SDK 58 expo-file-system only reads files it was
+ * granted access to, and expo-document-picker's results fail with "Missing 'READ' permission".
+ *
+ * The multipart filename is the file's own name, and the backend uses it as the doc name + type
+ * (.pdf/.txt/.md). If the picked file's name differs from the name we want, it is staged in the
+ * app cache under that name (copy, else read+write). If staging fails we still upload the
+ * picked file as-is rather than block the user.
  */
 function warnDev(step: string, err: unknown): void {
   if (__DEV__) console.warn(`[upload] ${step} failed:`, err instanceof Error ? err.message : String(err));
@@ -134,8 +156,8 @@ async function stageWithName(source: File, dir: Directory, name: string): Promis
 
 export async function uploadDoc(deviceId: string, file: PickedFile): Promise<UploadResult> {
   if (!API_URL) throw new ApiError(0, CONFIG_ERROR ?? "API URL not configured");
-  const safeName = file.name.replace(/[\\/]/g, "_").trim() || "notes";
-  const source = new File(file.uri);
+  const safeName = uploadName(file.name, file.mimeType);
+  const source = file.file;
   const stagingDir = new Directory(Paths.cache, "uploads", Crypto.randomUUID());
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);

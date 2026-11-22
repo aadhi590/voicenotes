@@ -1,4 +1,4 @@
-import * as DocumentPicker from "expo-document-picker";
+import { File } from "expo-file-system";
 import { useCallback } from "react";
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,14 +7,26 @@ import type { DocInfo } from "../api/http";
 import { clearAllDocs, removeDoc, uploadFile, useStore } from "../state/store";
 import { colors, radius } from "../theme";
 
-const PICKER_TYPES = ["application/pdf", "text/plain", "text/markdown", "text/x-markdown"];
+// Android often labels .md files as text/* or application/octet-stream; without these they'd be
+// greyed out in the picker. The backend rejects anything that isn't PDF/TXT/MD with a clear 400.
+const PICKER_TYPES = ["application/pdf", "text/*", "application/octet-stream"];
 
-/** Open the system picker and upload the chosen file. Shared by the panel and the empty state. */
+/**
+ * Open the system picker and upload the chosen file. Shared by the panel and the empty state.
+ * Uses expo-file-system's picker (not expo-document-picker): its File comes with the READ
+ * permission SDK 58 requires; document-picker results fail with "Missing 'READ' permission".
+ */
 export async function pickAndUpload(): Promise<void> {
-  const result = await DocumentPicker.getDocumentAsync({ type: PICKER_TYPES, copyToCacheDirectory: true, multiple: false });
-  if (result.canceled || !result.assets?.length) return;
-  const asset = result.assets[0];
-  await uploadFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType });
+  let picked: File;
+  try {
+    const result = await File.pickFileAsync({ mimeTypes: PICKER_TYPES });
+    if (result.canceled) return;
+    picked = result.result;
+  } catch (err) {
+    useStore.setState({ docsError: err instanceof Error ? `Couldn't open the file picker: ${err.message}` : "Couldn't open the file picker." });
+    return;
+  }
+  await uploadFile({ file: picked, name: picked.name, mimeType: picked.type || undefined });
 }
 
 interface Props {

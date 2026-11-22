@@ -1,3 +1,6 @@
+import * as Crypto from "expo-crypto";
+import { Directory, File, Paths, UploadType } from "expo-file-system";
+
 import { API_URL, CONFIG_ERROR } from "../config";
 
 export interface Health {
@@ -82,12 +85,66 @@ export function listDocs(deviceId: string): Promise<DocList> {
   return request<DocList>("/docs", deviceId);
 }
 
-export function uploadDoc(deviceId: string, file: PickedFile): Promise<UploadResult> {
-  const form = new FormData();
-  // React Native's FormData accepts {uri, name, type} for files; the DOM typing doesn't know that.
-  form.append("file", { uri: file.uri, name: file.name, type: file.mimeType ?? "application/octet-stream" } as unknown as Blob);
-  // No Content-Type header: fetch sets multipart/form-data with the boundary itself.
-  return request<UploadResult>("/docs", deviceId, { method: "POST", body: form }, UPLOAD_TIMEOUT_MS);
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Multipart upload via expo-file-system's native uploader.
+ *
+ * Why not fetch + FormData: in SDK 58 the global fetch on Android/iOS is expo/fetch (WinterCG),
+ * which does not accept React Native's `{uri, name, type}` FormData file objects; the request
+ * failed on the device before reaching the server.
+ *
+ * The file is first copied to a temp folder under its ORIGINAL name, because the multipart
+ * filename is the on-disk name and the backend uses it as the doc name + type (.pdf/.txt/.md);
+ * the picker's cache copy can have a generated name.
+ */
+export async function uploadDoc(deviceId: string, file: PickedFile): Promise<UploadResult> {
+  if (!API_URL) throw new ApiError(0, CONFIG_ERROR ?? "API URL not configured");
+  const safeName = file.name.replace(/[\\/]/g, "_").trim() || "notes";
+  const stagingDir = new Directory(Paths.cache, "uploads", Crypto.randomUUID());
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  try {
+    let staged: File;
+    try {
+      stagingDir.create({ intermediates: true });
+      staged = new File(stagingDir, safeName);
+      await new File(file.uri).copy(staged);
+    } catch {
+      throw new ApiError(0, "Couldn't read the selected file. Try picking it again.");
+    }
+
+    let result: { status: number; body: string };
+    try {
+      result = await staged.upload(API_URL + "/docs", {
+        httpMethod: "POST",
+        uploadType: UploadType.MULTIPART,
+        fieldName: "file",
+        mimeType: file.mimeType ?? "application/octet-stream",
+        headers: { "X-Device-Id": deviceId, Accept: "application/json" },
+        signal: controller.signal,
+      });
+    } catch {
+      throw new ApiError(0, controller.signal.aborted ? "Upload took too long. Try a smaller file." : "Can't reach server. Check your connection.");
+    }
+
+    const body = parseJson(result.body); // non-2xx responses resolve too: surface "detail" verbatim
+    if (result.status < 200 || result.status >= 300) throw new ApiError(result.status, detailOf(body, result.status));
+    return body as UploadResult;
+  } finally {
+    clearTimeout(timer);
+    try {
+      if (stagingDir.exists) stagingDir.delete();
+    } catch {
+      /* temp cache; the OS cleans it eventually */
+    }
+  }
 }
 
 export function deleteDoc(deviceId: string, docName: string): Promise<{ deleted: string }> {

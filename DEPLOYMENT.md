@@ -17,14 +17,16 @@ GitHub Actions still runs pytest on every push, so check that CI is green first.
 
 ```bash
 git push origin main                              # CI: backend-tests must be green
-cd app1/backend
-railway up --detach --service api                 # upload backend/ → build (Railpack, Python 3.11) → /health → switch
+cd app1                                           # REPO ROOT, not backend/ (service root dir is /backend)
+railway up --detach --service api                 # upload → build backend/ (Railpack, Python 3.11) → /health → switch
 railway logs --service api                        # expect: startup llm=... groq_key_set=True python=3.11.x
-.venv/Scripts/python scripts/e2e/run_all.py --base https://api-production-90b19b2d.up.railway.app --quick
+backend/.venv/Scripts/python backend/scripts/e2e/run_all.py --base https://api-production-90b19b2d.up.railway.app --quick
 ```
 
 - `railway up` deploys your **local working tree**, including uncommitted changes. Deploy from a clean `main` so production matches GitHub.
-- `backend/.railwayignore` keeps `.env`, `.venv`, tests and scripts out of the upload.
+- Run it from the **repo root**. Run from `backend/`, the build fails with `directory .../backend does not exist`, because the
+  service's root directory is `/backend`. If that happens, the previous deployment keeps serving.
+- `.railwayignore` (repo root) keeps `.env`, `.venv`, `node_modules`, tests, scripts and `mobile/` out of the upload.
 - A failed healthcheck keeps the previous deployment serving. Crashes restart up to 3 times.
 - To switch to push-to-deploy later: install the Railway GitHub App on `aadhi590` with access to `voicenotes`
   (service `api` → Settings → Source). The source, root `/backend` and `/backend/**` watch pattern are already

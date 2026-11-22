@@ -1,0 +1,12 @@
+# What `railway up` (run from the repo root) must never upload.
+.env
+**/.env
+.venv/
+**/.venv/
+node_modules/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+backend/tests/
+backend/scripts/
+mobile/

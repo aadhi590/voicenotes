@@ -82,6 +82,7 @@ def main() -> int:
     parser.add_argument("--question", default=DEFAULT_QUESTION)
     parser.add_argument("--cancel-after", type=int, default=None)
     args = parser.parse_args()
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
 
     base = args.base.rstrip("/")
     device_id = f"wstest-{uuid.uuid4().hex[:8]}"

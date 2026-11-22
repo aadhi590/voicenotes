@@ -1,6 +1,8 @@
 """Tunable constants for the VoiceNotes backend."""
 
-LLM_MODEL = "llama-3.3-70b-versatile"  # easy to swap
+# llama-3.3-70b-versatile was retired on Groq; qwen3.8-27b had the lowest TTFT
+# (~180ms) and best citation/voice formatting in a 2026-11-22 comparison.
+LLM_MODEL = "qwen/qwen3.8-27b"  # easy to swap
 STT_MODEL = "whisper-large-v3-turbo"
 
 CHUNK_WORDS = 500
